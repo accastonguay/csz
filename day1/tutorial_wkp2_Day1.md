@@ -1,3 +1,8 @@
+Workshop on modelling and mapping suitability of climate-sensitive
+zoonotic diseases
+================
+2023-07-12
+
 # Overview of Day 1 training
 
 ## What are we going to learn?
@@ -37,10 +42,9 @@ instructions](https://github.com/uqlibrary/technology-training/blob/master/R/Ins
 
 ## Understanding R Studio
 
--   Console: interactive coding
--   Script: write code first and then run chunks of code
--   Additional panels: visualise plots, install packages, view
-    environment
+- Console: interactive coding
+- Script: write code first and then run chunks of code
+- Additional panels: visualise plots, install packages, view environment
 
 <figure>
 <img
@@ -84,11 +88,11 @@ class(var)
 
 ## Data structures
 
--   vectors
--   dataframes
--   lists
--   matrix
--   arrays
+- vectors
+- dataframes
+- lists
+- matrix
+- arrays
 
 ``` r
 # assign a vector
@@ -130,26 +134,26 @@ active session with the command `library(package)`.
 install.packages("terra")
 ```
 
-1.  Then we need to load `terra` with
+2.  Then we need to load `terra` with
 
 ``` r
 library(terra)
 ```
 
-1.  Open the documentation page for the `terra` package with `?`
+3.  Open the documentation page for the `terra` package with `?`
 
 ``` r
 ?terra
 ```
 
-1.  Look at the documentation to explore specific `terra` functions, for
+4.  Look at the documentation to explore specific `terra` functions, for
     instance `rasterize()`
 
 ``` r
 ?rasterize
 ```
 
-1.  Install multiple packages that we will need for modelling by using a
+5.  Install multiple packages that we will need for modelling by using a
     vector of package names
 
 ``` r
@@ -169,16 +173,16 @@ install.packages(c("bangladesh", # maps of Bangladesh
 
 #### 1. Rasters
 
--   Grid with determined by extent and size (rows, columns)
--   Grid cells all have the same resolution
--   Metadata, e.g., resolution, extent, size, coordinate reference
-    system. name of layer (layers if more than one).
+- Grid with determined by extent and size (rows, columns)
+- Grid cells all have the same resolution
+- Metadata, e.g., resolution, extent, size, coordinate reference system.
+  name of layer (layers if more than one).
 
 #### 2. Vectors:
 
--   Points, lines and polygons
--   Each spatial entity has its location (e.g., lon, lat) or boundary
--   Metadata include coordinate reference system
+- Points, lines and polygons
+- Each spatial entity has its location (e.g., lon, lat) or boundary
+- Metadata include coordinate reference system
 
 <figure>
 <img
@@ -192,21 +196,21 @@ Wikimedia Commons</figcaption>
 
 ### Reading and writing (spatial) data
 
--   Reading spatial data: You need to read a file first to process or
-    visualise it. With the `terra` package, a raster file can be read
-    with the command `rast("file_path")` and a vector file can be read
-    with `vect("file_path")` or `st_read("file_path")`. Remember to
-    assign the data to a variable to be able to use it, e.g.,
-    `var <- rast("file_path")`.
+- Reading spatial data: You need to read a file first to process or
+  visualise it. With the `terra` package, a raster file can be read with
+  the command `rast("file_path")` and a vector file can be read with
+  `vect("file_path")` or `st_read("file_path")`. Remember to assign the
+  data to a variable to be able to use it, e.g.,
+  `var <- rast("file_path")`.
 
--   Reading non-spatial tabular data can be read with different
-    functions depending on the data type, e.g., `read.table()` for .txt
-    file, `read.csv()` for comma separated values (CSV) or `readxl()`
-    for excel files
+- Reading non-spatial tabular data can be read with different functions
+  depending on the data type, e.g., `read.table()` for .txt file,
+  `read.csv()` for comma separated values (CSV) or `readxl()` for excel
+  files
 
--   Writing spatial data: A raster file that was modified in R can be
-    saved with `writeRaster(variable, "file_path")`. Make sure metadata
-    is correct before saving a file.
+- Writing spatial data: A raster file that was modified in R can be
+  saved with `writeRaster(variable, "file_path")`. Make sure metadata is
+  correct before saving a file.
 
 ### Understanding working directories
 
@@ -227,16 +231,16 @@ setwd("./")
 
 #### Rasters:
 
--   Crop
--   mask
--   resample
+- Crop
+- mask
+- resample
 
 #### Vectors:
 
--   Filter
--   Rasterize
--   Clip
--   Buffer
+- Filter
+- Rasterize
+- Clip
+- Buffer
 
 ## Exercise
 
@@ -285,7 +289,7 @@ Visualise the layer(s) of the raster with the `plot` function:
 plot(bc1)
 ```
 
-![](tutorial_wkp2_Day1_files/figure-markdown_github/unnamed-chunk-14-1.png)
+![](tutorial_wkp2_Day1_files/figure-gfm/unnamed-chunk-14-1.png)<!-- -->
 
 #### 2. Read and plot vector
 
@@ -336,7 +340,7 @@ shown
 plot(map_upazila['Upazila'])
 ```
 
-![](tutorial_wkp2_Day1_files/figure-markdown_github/unnamed-chunk-16-1.png)
+![](tutorial_wkp2_Day1_files/figure-gfm/unnamed-chunk-16-1.png)<!-- -->
 
 #### 3. Crop raster to the geographical extent of Bangladesh with the `crop()` function.
 
@@ -349,7 +353,7 @@ plot(cropped_bc1)
 plot(map_country['geometry'], add = T)
 ```
 
-![](tutorial_wkp2_Day1_files/figure-markdown_github/unnamed-chunk-17-1.png)
+![](tutorial_wkp2_Day1_files/figure-gfm/unnamed-chunk-17-1.png)<!-- -->
 
 #### 4. Convert a point dataset to raster in three step:
 
@@ -482,7 +486,7 @@ plot(map_country['geometry'])
 plot(sp_empres_bgd['geometry'], add = T, col = 'red', cex = 0.5, pch = 16)
 ```
 
-![](tutorial_wkp2_Day1_files/figure-markdown_github/unnamed-chunk-21-1.png)
+![](tutorial_wkp2_Day1_files/figure-gfm/unnamed-chunk-21-1.png)<!-- -->
 
 #### 7. Rasterize infection cases points based on raster file with `terra` package
 
@@ -494,7 +498,7 @@ plot(map_country['geometry'], add = T)
 plot(sp_empres_bgd['geometry'], add = T, col = 'red', cex = 0.5, pch = 16)
 ```
 
-![](tutorial_wkp2_Day1_files/figure-markdown_github/unnamed-chunk-22-1.png)
+![](tutorial_wkp2_Day1_files/figure-gfm/unnamed-chunk-22-1.png)<!-- -->
 
 Plot the two raster maps side-by-side
 
@@ -503,4 +507,4 @@ rasters <- c(cropped_bc1,r_AIV)
 plot(rasters)
 ```
 
-![](tutorial_wkp2_Day1_files/figure-markdown_github/unnamed-chunk-23-1.png)
+![](tutorial_wkp2_Day1_files/figure-gfm/unnamed-chunk-23-1.png)<!-- -->
