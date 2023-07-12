@@ -1,0 +1,637 @@
+---
+title: "Modelling and mapping suitability of climate-sensitive zoonotic diseases"
+format: revealjs
+editor: visual
+highlight-style: "solarized"
+date: "2023-07-13"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(eval = TRUE)
+```
+
+## What we will see today
+
+1.  Species distribution modelling
+2.  Structural equation modelling
+3.  Climate change scenarios
+4.  Model uncertainty and sensitivity
+
+## Setting up the working directory
+
+Using the `setwd()` function,
+
+## Species distribution modelling
+
+Species distribution models (SDMs) or Ecological Niche Models (ENMs) are used to explore how the occurrence of a species is related to the environment, and how a species might respond to changes in its environment.
+
+Comprehensive documentation on [distribution modelling in R](https://rspatial.org/raster/sdm/).
+
+There are many types of SDMs, we will be using Maxent (Maximum Entropy modelling).
+
+## Species distribution modelling
+
+![](C:/Users/uqachare/Downloads/quarto_pics/AI_model_BGD_quarto_full.png){fig-align="center"}
+
+## Species distribution modelling
+
+![](C:/Users/uqachare/Downloads/quarto_pics/AI_model_BGD_quarto.png){fig-align="center" width="300"}
+
+## Inputs of Maxent
+
+To develop an SDM, we need two main inputs:
+
+-   Point data of occurence of a species
+
+-   Rasters of environmental predictors.
+
+## Outputs of Maxent
+
+The main output of a SDM is a raster map of probability of occurrence of a species given environmental predictors.
+
+More analysis can then be done by looking at the importance of each predictor.
+
+## Dependencies
+
+To run a maxent model in R we will need to
+
+1.  Have [Java](https://www.java.com/en/download/help/download_options.html) installed, as maxent is a software written in Java
+2.  Have the `dismo` (distribution modelling) package installed to access the R maxent function
+3.  `rgibf` library to access occurrence of species online of the [Global Biodiversity Infrastructure Facility](https://www.gbif.org/).
+
+## Dependencies
+
+Once dependencies have been installed, we can load the required libraries
+
+```{r, eval = TRUE}
+library(dismo)
+library(terra)
+library(rgbif)
+library(bangladesh)
+library(dplyr)
+
+# setwd("")
+```
+
+## Reading the inputs: occurrence of species
+
+Download occurrence points of (**Indian pied myna) *Gracupica contra*** from the **Passeriformes** order from GBIF
+
+## Reading the inputs: occurrence of species
+
+```{r}
+myspecies <- "Gracupica contra"
+
+gbif_data <- occ_data(scientificName = myspecies, 
+                        country  = 'BD', 
+                        limit = 1000,
+                        hasCoordinate = TRUE)
+occ <- gbif_data$data %>%
+  dplyr::select(lon = decimalLongitude, lat = decimalLatitude)
+
+head(occ)
+```
+
+## Plot occurrence
+
+```{r}
+plot(map_country['geometry'])
+points(occ, col = 'red', pch = 16, cex = 0.5)
+
+```
+
+## Process occurrence data
+
+Partition the occurrence dataset to create a model testing subset with the `kfold` function
+
+```{r}
+# witholding a 20% sample for testing 
+fold <- kfold(occ, k=5)
+occtest <- occ[fold == 1, ]
+occtrain <- occ[fold != 1, ]
+```
+
+## Reading the inputs: predictors
+
+Reading rasters of environmental predictors. We will use rasters of proximity to nesting wetland, temperature and cropland fraction as environmental predictors.
+
+```{r, eval = TRUE}
+# path <- "./" 
+# setwd(path)  
+predictors <- rast("./data_day2/sdm_inputs.tif") 
+predictors <- predictors[[c("Annual_Mean_Temp", "dist_wetlands", "cropland_fraction")]]
+```
+
+## Reading the inputs
+
+```{r}
+plot(predictors)
+```
+
+## Run the Maxent model
+
+```{r}
+raster_predictors <- stack(predictors)
+occtrain_df <- as.data.frame(occtrain)
+
+me <- maxent(raster_predictors, occtrain_df)
+me
+```
+
+Maxent requires a `raster` object for predictors and a `data.frame` object, therefore
+
+## Predict occurrence
+
+```{r}
+r <- predict(me, stack(predictors)) 
+
+plot(r)
+```
+
+## Predict and map occurrence
+
+```{r}
+r <- predict(me, stack(predictors)) 
+
+plot(r)
+points(occ, pch = 16, col = 'red', cex = 0.5)
+```
+
+## Explore the contribution of predictors
+
+```{r}
+plot(me)
+```
+
+## Model validation
+
+Assess the goodness-of-fit of the model with the area under the curve (AUC) of the Receiver Operating Characteristic (ROC) Curve metric
+
+```{r}
+#Generate background/random data
+bg <- randomPoints( stack(predictors), 1000)
+
+e1 <- evaluate(me, p=occtest, a=bg, x=predictors)
+e1
+```
+
+## Exercise
+
+Apply the model with different predictors and explore their contribution:
+
+-   Annual precipitation
+-   Mean temperature of the warmest quarter
+-   Urban fraction
+-   Forest fraction
+
+## Exercise
+
+Run maxent model for other species, e.g.:
+
+-   House crow (*Corvus splendens*)
+-   House sparrow (*Passer domesticus*)
+-   Northern pintail (*Anas acuta*)
+-   Tufted duck (*Aythya fuligula*)
+
+## Full maxent model with 27 predictors
+
+```{r, echo = FALSE}
+files <- list.files("C:/Users/uqachare/OneDrive - The University of Queensland/Documents/WB project/SDM_datasets/",
+                    full.names = TRUE, pattern= '.tif') 
+predictors <- rast(files) %>%
+  crop(map_country, mask = TRUE)
+predictors <- ifel(is.na(predictors), 0, predictors)
+
+raster_predictors <- stack(predictors)
+occtrain_df <- as.data.frame(occtrain)
+
+me_full <- maxent(raster_predictors, occtrain_df, factors = 'biomes')
+plot(me_full)
+```
+
+## Full maxent model with 27 predictors
+
+```{r, echo = FALSE}
+#Generate background/random data
+bg <- randomPoints( stack(predictors), 1000)
+
+e1 <- evaluate(me_full, p=occtest, a=bg, x=predictors)
+e1
+```
+
+## Full maxent model with 27 predictors
+
+```{r, echo = FALSE}
+r <- predict(me_full, stack(predictors)) 
+
+plot(r)
+points(occ, pch = 16, col = 'red', cex = 0.5)
+```
+
+## Species distribution modelling
+
+-   Wild birds (111 species) for avian influenza
+
+-   Vectors (Culex spp., Phlebotomus spp, Aedes aegypti)
+
+-   Rodents (25 species), bats (40 species)
+
+![](C:/Users/uqachare/Downloads/quarto_pics/dengue_qrto.png)
+
+## Structural equation modelling
+
+#### What is a structural equation model
+
+A multivariate statistical analysis technique that combines of factor analysis and multiple regression analysis to evaluate the structural relationship between measured variables and latent constructs.
+
+## Why use a SEM?
+
+We use SEM to identify the importance of factors driving the different exposures
+
+![](C:/Users/uqachare/Downloads/quarto_pics/AI_model_BGD_subset_qrto.png){fig-align="center" width="422"}
+
+## How to we build a SEM in R
+
+We will use the `lavaan` package for latent variable analysis. Lavaan has a specific syntax that must be respected for R to understand the model.
+
+The operator `=~` signifies *is measured by*
+
+The operator `~` signifies *is* *regressed on*
+
+More information can be found on the [lavaan website](https://lavaan.ugent.be/tutorial/syntax1.html).
+
+## Syntax for submodel of avian influenza
+
+```{r}
+library(lavaan)
+
+mod <- '
+  ### measurement model
+
+  # Environmental exposures
+  Bird_Nesting_exposure =~ waterfowl_ai_cases 
+
+  # Animal exposures
+  Commercial_exposure =~ cases_c_farms 
+  Human_exposure =~ human_cases 
+  
+  ### regressions
+  # Environmental exposures
+  Bird_Nesting_exposure ~ curr_bird_dist + dist_wetlands
+
+  # Animal exposures
+  Commercial_exposure ~ Bird_Nesting_exposure + chicken_density  + duck_density
+  Human_exposure ~ Commercial_exposure + urban_fraction + poverty + pop_density
+'
+```
+
+## Read data to input in model
+
+```{r}
+r <- rast("./data_day2/sem_inputs.tif")
+
+plot(r[[1:4]])
+```
+
+## Process data to input in model
+
+```{r}
+r.scaled <- scale(r) %>%
+  mask(map_country)
+plot(r.scaled[[1:4]])
+df <- as.data.frame(r.scaled, na.rm = FALSE, xy=TRUE)
+df[is.na(df)] = 0
+```
+
+## Model fitting
+
+Then we need to fit the data (`df`) to the model with the `sem()` function
+
+```{r}
+fit <- sem(mod, data = df)
+```
+
+## Visualize graph
+
+You can visualise the graph and look at the coefficients of the multiple regressions to identify the importance of the different predictors
+
+```{r}
+library(lavaanPlot)
+lp <- lavaanPlot(model = fit, , coefs = TRUE)
+lp
+```
+
+## Inspect summary of model fit
+
+```{r}
+summary(fit, standardized = TRUE)
+```
+
+## Model validation: assess performance of SEM
+
+We can assess the performance of the model with the performance package that include several validation metrics, including the comparative fit index (CFI) and the root mean square error or approximation (RMSEA)
+
+```{r}
+library(performance)
+model_performance(fit, metrics = c('CFI', 'RMSEA'))
+```
+
+## Map the results of the SEM
+
+To map results, we need to extract coefficients
+
+```{r}
+library(stringr)
+library(tidyr)
+
+cf <- lavaan::coef(fit)
+
+dfcf <- as.data.frame(cf) %>%
+  filter(!str_detect(rownames(.), '~~')) %>%
+  mutate(regression = rownames(.)) %>%
+  separate(col =  regression, into= c('exposure', 'param'), sep = '~') 
+
+list_weights <- list()
+
+exposures <- distinct(dfcf, exposure)
+
+for (exp in exposures$exposure){
+  sub <- dplyr::filter(dfcf, exposure == exp)
+  plist = list()
+  for (param in sub$param){
+    plist[param] = sub[sub$param == param, 'cf']
+  }
+  list_weights[[exp]] = plist
+}
+
+Bird_Nesting_exposure = 
+  r.scaled$curr_bird_dist * list_weights$Bird_Nesting_exposure$curr_bird_dist + 
+  r.scaled$dist_wetlands * list_weights$Bird_Nesting_exposure$dist_wetlands
+
+Commercial_exposure = 
+  Bird_Nesting_exposure * list_weights$Commercial_exposure$Bird_Nesting_exposure +
+  r.scaled['chicken_density'] * list_weights$Commercial_exposure$chicken_density +
+  r.scaled['duck_density'] * list_weights$Commercial_exposure$duck_density
+
+Human_exposure = 
+  Commercial_exposure * list_weights$Human_exposure$Commercial_exposure + 
+  r.scaled$urban_fraction * list_weights$Human_exposure$urban_fraction + 
+  r.scaled$poverty * list_weights$Human_exposure$poverty + 
+  r.scaled$pop_density * list_weights$Human_exposure$pop_density
+  
+```
+
+## Bird nesting exposure
+
+```{r, echo = FALSE}
+library(sf)
+wildbirds <- readxl::read_xls("C:/Users/uqachare/OneDrive - The University of Queensland/Documents/WB project/bangladesh_model/AI/Wildbirds_Domesticbirds_Chapter-1.xls")%>%
+  mutate(address = `Site of sample collection`)
+
+geoadresses <- read.csv('C:/Users/uqachare/OneDrive - The University of Queensland/Documents/bgd_addresses.csv') %>%
+  select(address, latlong) %>%
+  separate(col = latlong, into = c('lat', 'lon'), sep = ',') %>%
+  filter(!is.na(lon))
+
+# geoadresses_sf <- st_as_sf(geoadresses,
+#                            coords = c('lon', 'lat'),
+#                            crs = 4326)
+
+wb2 <- wildbirds %>%
+  left_join(geoadresses, by = c("address" = "address")) %>%
+  group_by(address) %>%
+  summarise(n_AIV = sum(`AIV result`, na.rm = T),
+            n_cELISA = sum(`cELISA result`, na.rm = T)) %>%
+  right_join(geoadresses) %>%
+  st_as_sf(coords = c('lon', 'lat'),
+           crs = 4326)
+
+plot(Bird_Nesting_exposure)
+plot(wb2, add = TRUE, col = 'red', cex = 0.75, pch = 16)
+
+```
+
+## Commercial farm exposure
+
+```{r, echo = FALSE}
+cases_SC <- readxl::read_xlsx("C:/Users/uqachare/OneDrive - The University of Queensland/Documents/WB project/bangladesh_model/AI/datasets/animal_cases/Bangladesh data base_complete_Sukanta.xlsx",
+                  skip = 2) %>%
+  mutate(Lattitude = as.numeric(Lattitude)) %>%
+  filter(!is.na(Lattitude) & !is.na(Longitude) & Lattitude > 14)%>%
+  select(lon = Longitude, lat = Lattitude, system = `Production system`)
+
+cmfarms <- filter(cases_SC, system == 'Commercial')
+
+plot(Commercial_exposure)
+points(cmfarms, col = 'red', cex = 0.5, pch = 16)
+
+```
+
+## Human exposure
+
+```{r, echo = FALSE}
+names(Human_exposure) <- "human exposure"
+human_cases <- r.scaled$human_cases
+names(human_cases) <- "human cases"
+
+plot(c(Human_exposure, human_cases))
+```
+
+## Exercise
+
+#### Change the structure of the SEM
+
+```{r}
+
+mod <- '
+  ### measurement model
+
+  # Environmental exposures
+  Bird_Nesting_exposure =~ waterfowl_ai_cases 
+
+  # Animal exposures
+  Commercial_exposure =~ cases_c_farms 
+  Human_exposure =~ human_cases 
+  
+  ### regressions
+  # Environmental exposures
+  Bird_Nesting_exposure ~ curr_bird_dist + dist_wetlands
+
+  # Animal exposures
+  Commercial_exposure ~ Bird_Nesting_exposure + chicken_density  + duck_density
+  Human_exposure ~ Commercial_exposure + urban_fraction + poverty + pop_density
+'
+```
+
+## Exercise
+
+#### Fit the new model with `sem()`
+
+#### Assess the new coefficients with `summary()`
+
+#### Evaluate the performance of the new model with `model_performance()`
+
+## Climate change scenarios
+
+#### How do we assess the impact of climate change on the suitability of zoonoses?
+
+1.  What is "climate change", what is the variable of interest? What Shared Socioeconomic pathway (SSP)? What Representative Concentration Pathway (RCP)?
+
+2.  "When" is "climate change"? What is the timeframe of climate change in the model?
+
+## Where to get information on climate change?
+
+-   IPCC, Regional Climate Models
+
+-   Climate projections processed from [WorldClim](https://www.worldclim.org/) (`raster::getData()`)
+
+## How to include this information in the model?
+
+Climate information is included in the SDM as climate variables.
+
+Use projected instead of current bioclimatic variable to predict the occurrence of the Indian pied myna (*Gracupica contra*)
+
+## How to include this information in the model?
+
+1.  We need to read rasters of projected bioclimatic variables
+
+2.  Re-run the maxent model with the new bioclimatic variables to generate species occurrence map under climate change
+
+3.  Add the new species distribution map into the SEM model
+
+## Read rasters of projected bioclimatic variables
+
+```{r}
+cc <- rast("./data_day2/cc_sdm_inputs.tif")
+
+plot(cc)
+```
+
+## Create new predictor raster for maxent
+
+```{r}
+predictors <- rast("./data_day2/sdm_inputs.tif")
+
+s1 <- stack(predictors[[c( "dist_wetlands","cropland_fraction", "forest_fraction", "urban_fraction")]])
+s2 <- stack(ifel(is.na(cc), 0, cc))
+ 
+cc_predictors <- stack(s1, s2)
+  
+```
+
+## Re-run the prediction of occurrence
+
+Predicted occurrence of the Indian pied myna
+
+```{r}
+me <- maxent(stack(predictors[[c("dist_wetlands", "urban_fraction", "Annual_Precipitation", "Mean_Temp_Warmest_qrt")]]), occtrain_df)
+
+predicted <- rast(predict(me, stack(predictors))) 
+predicted_cc <- rast(predict(me, cc_predictors)) 
+
+names(predicted) <- "Current"
+names(predicted_cc) <- "Projected"
+
+plot(c(predicted, predicted_cc))
+```
+
+## Plot the change in occurrence
+
+We can also plot the relative change in occurrence
+
+```{r}
+plot((predicted_cc - predicted)/predicted)
+```
+
+## Feed the projected species distribution in the SEM
+
+```{r}
+sem_inputs <- rast("./data_day2/sem_inputs.tif")
+
+sem_inputs_cc <- c(sem_inputs, predicted_cc)
+sem_inputs_cc <- scale(sem_inputs_cc)
+```
+
+## Reassess exposures
+
+```{r}
+Bird_Nesting_exposure_cc = 
+  sem_inputs_cc$Projected * list_weights$Bird_Nesting_exposure$curr_bird_dist +
+  sem_inputs_cc$dist_wetlands * list_weights$Bird_Nesting_exposure$dist_wetlands
+
+Commercial_exposure_cc = 
+  Bird_Nesting_exposure * list_weights$Commercial_exposure$Bird_Nesting_exposure +
+  sem_inputs_cc['chicken_density'] * list_weights$Commercial_exposure$chicken_density +
+  sem_inputs_cc['duck_density'] * list_weights$Commercial_exposure$duck_density
+
+Human_exposure_cc = 
+  Commercial_exposure * list_weights$Human_exposure$Commercial_exposure + 
+  sem_inputs_cc$urban_fraction * list_weights$Human_exposure$urban_fraction + 
+  sem_inputs_cc$poverty * list_weights$Human_exposure$poverty + 
+  sem_inputs_cc$pop_density * list_weights$Human_exposure$pop_density
+```
+
+## Map new suitability of bird exposure
+
+```{r}
+names(Bird_Nesting_exposure) <- "Current bird exposure"
+names(Bird_Nesting_exposure_cc) <- "Projected bird exposure"
+
+plot(c(Bird_Nesting_exposure, Bird_Nesting_exposure_cc))
+```
+
+## Map new suitability of bird exposure
+
+```{r}
+names(Commercial_exposure) <- "Current poultry exposure"
+names(Commercial_exposure_cc) <- "Projected poultry exposure"
+
+plot(c(Commercial_exposure, Commercial_exposure_cc))
+```
+
+## Map new suitability of human exposure
+
+```{r}
+names(Human_exposure) <- "Current human exposure"
+names(Human_exposure_cc) <- "Projected human exposure"
+plot(c(Human_exposure, Human_exposure_cc))
+```
+
+## Small impact of wild birds on commercial farms
+
+```{r}
+lp
+```
+
+## Exercise
+
+#### Map current and projected suitability given the distribution of other species, e.g.:
+
+-   House crow (*Corvus splendens*)
+-   House sparrow (*Passer domesticus*)
+-   Northern pintail (*Anas acuta*)
+-   Tufted duck (*Aythya fuligula*)
+
+## Further model assessment: uncertainty and sensitivity analysis
+
+#### Sources of uncertainty:
+
+-   Parameter uncertainty: are the inputs we are using to inform the model reliable? If not how can we improve them?
+-   Model or structural uncertainty
+-   Amplification of uncertainty: Uncertainty of climate model -\> Uncertainty of SDM -\> Uncertainty of SEM
+
+## Further model assessment: uncertainty and sensitivity analysis
+
+#### How do we assess uncertainty?
+
+Run model with different climate change scenarios (climate models, SSPs), run SDMs and SEMs with with data from different source if possible.
+
+Results can be presented as an envelop of outputs.
+
+## Further model assessment: uncertainty and sensitivity analysis
+
+To what extent results are varying when we change a given input. Not only it informs us on the variability of results but it also help identify drivers of exposure to support decisions.
+
+-   One-factor-at-a-time (local)
+-   [Sensobol](https://cran.r-project.org/web/packages/sensobol/index.html): Global variance-based sensitivity analysis with Sobol sampling (global)
+-   Morris method (Global) [Morris method](https://www.rdocumentation.org/packages/sensitivity/versions/1.28.1/topics/morris) from the [sensitivity](https://www.rdocumentation.org/packages/sensitivity/versions/1.28.1) package
